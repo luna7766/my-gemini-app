@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Q&A Web App</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --accent: #2563eb;
+      --border: #e2e8f0;
+      --user-bubble: #eff6ff;
+      --ai-bubble: #f1f5f9;
+      --btn-secondary-hover: #e2e8f0;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 88vh;
+    }
+
+    .header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: #fafafa;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-top h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-action {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: var(--btn-secondary-hover);
+    }
+
+    .btn-action.reset {
+      color: var(--danger);
+      border-color: #fca5a5;
+    }
+
+    .btn-action.reset:hover {
+      background: #fee2e2;
+    }
+
+    .settings-bar {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .settings-bar select, .settings-bar input {
+      padding: 0.55rem 0.75rem;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      background: #fff;
+    }
+
+    .settings-bar input {
+      flex: 1;
+    }
+
+    .chat-box {
+      flex: 1;
+      padding: 1.25rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .message {
+      max-width: 82%;
+      padding: 0.85rem 1.1rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--user-bubble);
+      color: #1e40af;
+      border-bottom-right-radius: 2px;
+    }
+
+    .message.ai {
+      align-self: flex-start;
+      background: var(--ai-bubble);
+      border-bottom-left-radius: 2px;
+    }
+
+    .message.system-notice {
+      align-self: center;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      padding: 0.4rem;
+    }
+
+    .input-area {
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+      background: #fafafa;
+    }
+
+    textarea {
+      flex: 1;
+      resize: none;
+      height: 52px;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    textarea:focus, .settings-bar input:focus, .settings-bar select:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-send {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 1.2rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="header-top">
+        <h1>Gemini Q&A</h1>
+        <div class="action-buttons">
+          <button id="copyBtn" class="btn-action" title="전체 대화를 텍스트로 복사">📋 대화 복사</button>
+          <button id="resetBtn" class="btn-action reset" title="대화 내역 지우기 및 문맥 초기화">🔄 대화 초기화</button>
+        </div>
+      </div>
+      <div class="settings-bar">
+        <!-- 루나가 요청한 3.1 Flash Lite 및 3.5 Flash Lite 옵션 추가 -->
+        <select id="modelSelect">
+          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (RPD 500)</option>
+          <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (RPD 500)</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+        </select>
+        <input type="password" id="apiKey" placeholder="Google AI Studio API 키 입력" />
+      </div>
+    </div>
+
+    <div class="chat-box" id="chatBox"></div>
+
+    <div class="input-area">
+      <textarea id="promptInput" placeholder="질문을 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"></textarea>
+      <button id="sendBtn" class="btn-send">전송</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { GoogleGenAI } from "https://esm.run/@google/genai";
+
+    const apiKeyInput = document.getElementById("apiKey");
+    const modelSelect = document.getElementById("modelSelect");
+    const promptInput = document.getElementById("promptInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const chatBox = document.getElementById("chatBox");
+    const copyBtn = document.getElementById("copyBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const STORAGE_KEY_API = "gemini_api_key";
+    const STORAGE_KEY_MODEL = "gemini_selected_model";
+    const STORAGE_KEY_HISTORY = "gemini_chat_history";
+
+    let conversationHistory = [];
+
+    // 로컬 저장소 값 복원
+    if (localStorage.getItem(STORAGE_KEY_API)) {
+      apiKeyInput.value = localStorage.getItem(STORAGE_KEY_API);
+    }
+    if (localStorage.getItem(STORAGE_KEY_MODEL)) {
+      modelSelect.value = localStorage.getItem(STORAGE_KEY_MODEL);
+    }
+
+    try {
+      const savedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
+      if (savedHistory) {
+        conversationHistory = JSON.parse(savedHistory);
+      }
+    } catch (e) {
+      conversationHistory = [];
+    }
+
+    function renderAllMessages() {
+      chatBox.innerHTML = "";
+      if (conversationHistory.length === 0) {
+        appendSystemNotice("저장된 이전 대화가 없습니다. 자유롭게 대화를 시작해 보세요!");
+        return;
+      }
+
+      conversationHistory.forEach(item => {
+        const roleClass = item.role === "user" ? "user" : "ai";
+        renderBubble(item.text, roleClass);
+      });
+      scrollToBottom();
+    }
+
+    function renderBubble(text, roleClass) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `message ${roleClass}`;
+      msgDiv.textContent = text;
+      chatBox.appendChild(msgDiv);
+      return msgDiv;
+    }
+
+    function appendSystemNotice(text) {
+      const noticeDiv = document.createElement("div");
+      noticeDiv.className = "message system-notice";
+      noticeDiv.textContent = text;
+      chatBox.appendChild(noticeDiv);
+    }
+
+    function scrollToBottom() {
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function saveHistoryToStorage() {
+      localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(conversationHistory));
+    }
+
+    apiKeyInput.addEventListener("change", () => {
+      localStorage.setItem(STORAGE_KEY_API, apiKeyInput.value.trim());
+    });
+
+    modelSelect.addEventListener("change", () => {
+      localStorage.setItem(STORAGE_KEY_MODEL, modelSelect.value);
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      if (conversationHistory.length === 0) {
+        alert("복사할 대화 내역이 없습니다.");
+        return;
+      }
+
+      const formattedText = conversationHistory.map(item => {
+        const sender = item.role === "user" ? "Q" : "A";
+        return `[${sender}]\n${item.text}\n`;
+      }).join("\n");
+
+      try {
+        await navigator.clipboard.writeText(formattedText);
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = "✓ 복사완료!";
+        setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
+      } catch (err) {
+        alert("클립보드 복사에 실패했습니다: " + err.message);
+      }
+    });
+
+    resetBtn.addEventListener("click", () => {
+      if (conversationHistory.length === 0) return;
+      if (confirm("대화 내역과 이전 기억을 모두 초기화할까요?")) {
+        conversationHistory = [];
+        localStorage.removeItem(STORAGE_KEY_HISTORY);
+        renderAllMessages();
+        promptInput.focus();
+      }
+    });
+
+    async function handleSend() {
+      const apiKey = apiKeyInput.value.trim();
+      const prompt = promptInput.value.trim();
+      const selectedModel = modelSelect.value;
+
+      if (!apiKey) {
+        alert("상단에 Gemini API 키를 먼저 입력해주세요.");
+        apiKeyInput.focus();
+        return;
+      }
+
+      if (!prompt) return;
+
+      const systemNotice = chatBox.querySelector(".system-notice");
+      if (systemNotice) systemNotice.remove();
+
+      conversationHistory.push({ role: "user", text: prompt });
+      renderBubble(prompt, "user");
+      saveHistoryToStorage();
+
+      promptInput.value = "";
+      sendBtn.disabled = true;
+
+      const aiBubble = renderBubble("...", "ai");
+      scrollToBottom();
+
+      try {
+        const ai = new GoogleGenAI({ apiKey });
+
+        const safetySettings = [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+        ];
+
+        const contentsPayload = conversationHistory.map(item => ({
+          role: item.role,
+          parts: [{ text: item.text }]
+        }));
+
+        const responseStream = await ai.models.generateContentStream({
+          model: selectedModel,
+          contents: contentsPayload,
+          config: {
+            safetySettings: safetySettings,
+          },
+        });
+
+        let fullAiText = "";
+        aiBubble.textContent = "";
+
+        for await (const chunk of responseStream) {
+          const chunkText = chunk.text;
+          if (chunkText) {
+            fullAiText += chunkText;
+            aiBubble.textContent = fullAiText;
+            scrollToBottom();
+          }
+        }
+
+        conversationHistory.push({ role: "model", text: fullAiText });
+        saveHistoryToStorage();
+
+      } catch (error) {
+        aiBubble.textContent = `오류 발생: ${error.message || "답변을 불러오지 못했습니다. 모델명이나 키를 확인해주세요."}`;
+        conversationHistory.pop();
+        saveHistoryToStorage();
+      } finally {
+        sendBtn.disabled = false;
+        promptInput.focus();
+      }
+    }
+
+    sendBtn.addEventListener("click", handleSend);
+
+    promptInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    });
+
+    renderAllMessages();
+  </script>
+</body>
+</html>
