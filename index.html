@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gemini Q&A Web App</title>
+  <title>Gemini 창작 스튜디오</title>
   <style>
     :root {
       --bg: #f8fafc;
@@ -31,12 +31,12 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      padding: 1rem;
+      padding: 0.5rem;
     }
 
     .container {
       width: 100%;
-      max-width: 720px;
+      max-width: 760px;
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 16px;
@@ -44,15 +44,15 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      height: 88vh;
+      height: 92vh;
     }
 
     .header {
-      padding: 1rem 1.25rem;
+      padding: 0.9rem 1.2rem;
       border-bottom: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.6rem;
       background: #fafafa;
     }
 
@@ -60,31 +60,29 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
     .header-top h1 {
-      font-size: 1.25rem;
+      font-size: 1.15rem;
       font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
     }
 
     .action-buttons {
       display: flex;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .btn-action {
-      padding: 0.4rem 0.75rem;
-      font-size: 0.8rem;
+      padding: 0.4rem 0.65rem;
+      font-size: 0.78rem;
       font-weight: 600;
       border-radius: 6px;
       cursor: pointer;
       border: 1px solid var(--border);
       background: #ffffff;
       color: var(--text);
-      transition: all 0.2s;
     }
 
     .btn-action:hover {
@@ -96,18 +94,14 @@
       border-color: #fca5a5;
     }
 
-    .btn-action.reset:hover {
-      background: #fee2e2;
-    }
-
     .settings-bar {
       display: flex;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .settings-bar select, .settings-bar input {
-      padding: 0.55rem 0.75rem;
-      font-size: 0.85rem;
+      padding: 0.5rem 0.65rem;
+      font-size: 0.82rem;
       border: 1px solid var(--border);
       border-radius: 8px;
       outline: none;
@@ -118,9 +112,42 @@
       flex: 1;
     }
 
+    /* 작품 기본틀 (시스템 프롬프트) 영역 */
+    .system-box {
+      display: none;
+      flex-direction: column;
+      gap: 0.4rem;
+      padding-top: 0.4rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .system-box.open {
+      display: flex;
+    }
+
+    .system-box label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #475569;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .system-box textarea {
+      width: 100%;
+      height: 110px;
+      padding: 0.6rem;
+      font-size: 0.85rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fffbeb;
+      line-height: 1.4;
+      resize: vertical;
+    }
+
     .chat-box {
       flex: 1;
-      padding: 1.25rem;
+      padding: 1.2rem;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
@@ -128,11 +155,11 @@
     }
 
     .message {
-      max-width: 82%;
+      max-width: 85%;
       padding: 0.85rem 1.1rem;
       border-radius: 12px;
       font-size: 0.95rem;
-      line-height: 1.6;
+      line-height: 1.65;
       white-space: pre-wrap;
       word-break: break-word;
     }
@@ -152,33 +179,27 @@
 
     .message.system-notice {
       align-self: center;
-      background: transparent;
       color: #94a3b8;
       font-size: 0.85rem;
-      padding: 0.4rem;
     }
 
     .input-area {
-      padding: 1rem;
+      padding: 0.9rem;
       border-top: 1px solid var(--border);
       display: flex;
       gap: 0.5rem;
       background: #fafafa;
     }
 
-    textarea {
+    .input-area textarea {
       flex: 1;
       resize: none;
-      height: 52px;
+      height: 54px;
       padding: 0.65rem 0.75rem;
       border: 1px solid var(--border);
       border-radius: 8px;
       font-size: 0.95rem;
       outline: none;
-    }
-
-    textarea:focus, .settings-bar input:focus, .settings-bar select:focus {
-      border-color: var(--accent);
     }
 
     .btn-send {
@@ -190,12 +211,10 @@
       font-weight: 600;
       font-size: 0.9rem;
       cursor: pointer;
-      transition: opacity 0.2s;
     }
 
     .btn-send:disabled {
       opacity: 0.5;
-      cursor: not-allowed;
     }
   </style>
 </head>
@@ -204,27 +223,38 @@
   <div class="container">
     <div class="header">
       <div class="header-top">
-        <h1>Gemini Q&A</h1>
+        <h1>Gemini 창작 스튜디오</h1>
         <div class="action-buttons">
-          <button id="copyBtn" class="btn-action" title="전체 대화를 텍스트로 복사">📋 대화 복사</button>
-          <button id="resetBtn" class="btn-action reset" title="대화 내역 지우기 및 문맥 초기화">🔄 대화 초기화</button>
+          <button id="toggleSysBtn" class="btn-action">✍️ 기본틀 설정</button>
+          <button id="copyBtn" class="btn-action">📋 복사</button>
+          <button id="resetBtn" class="btn-action reset">🔄 초기화</button>
         </div>
       </div>
+
       <div class="settings-bar">
-        <!-- 루나가 요청한 3.1 Flash Lite 및 3.5 Flash Lite 옵션 추가 -->
         <select id="modelSelect">
-          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (RPD 500)</option>
-          <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (RPD 500)</option>
+          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+          <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
           <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro (장편/고성능)</option>
         </select>
-        <input type="password" id="apiKey" placeholder="Google AI Studio API 키 입력" />
+        <input type="password" id="apiKey" placeholder="API 키 입력" />
+      </div>
+
+      <!-- 작품 기본틀 고정 입력창 -->
+      <div class="system-box" id="systemBox">
+        <label>
+          <span>📌 작품 기본틀 고정 (System Instruction - 대화 내내 유지됨)</span>
+          <span>창의성(Temp): <input type="number" id="tempInput" value="1.0" step="0.1" min="0" max="2" style="width:50px; padding:2px 4px; font-size:0.75rem;"></span>
+        </label>
+        <textarea id="systemPrompt" placeholder="예: 당신은 로맨스 판타지 소설가입니다.&#10;- 시점: 1인칭 주인공 시점&#10;- 문체: 섬세하고 감각적인 묘사, 서정적인 분위기&#10;- 등장인물: 리안(냉철한 북부 대공), 엘레나(몰락한 귀족 영애)&#10;- 규칙: 설명조의 요약을 피하고 대사와 행동 묘사로 장면을 길게 전개할 것."></textarea>
       </div>
     </div>
 
     <div class="chat-box" id="chatBox"></div>
 
     <div class="input-area">
-      <textarea id="promptInput" placeholder="질문을 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"></textarea>
+      <textarea id="promptInput" placeholder="장면 지시나 이어질 내용을 입력하세요"></textarea>
       <button id="sendBtn" class="btn-send">전송</button>
     </div>
   </div>
@@ -239,42 +269,55 @@
     const chatBox = document.getElementById("chatBox");
     const copyBtn = document.getElementById("copyBtn");
     const resetBtn = document.getElementById("resetBtn");
+    const toggleSysBtn = document.getElementById("toggleSysBtn");
+    const systemBox = document.getElementById("systemBox");
+    const systemPrompt = document.getElementById("systemPrompt");
+    const tempInput = document.getElementById("tempInput");
 
     const STORAGE_KEY_API = "gemini_api_key";
     const STORAGE_KEY_MODEL = "gemini_selected_model";
     const STORAGE_KEY_HISTORY = "gemini_chat_history";
+    const STORAGE_KEY_SYSTEM = "gemini_system_prompt";
+    const STORAGE_KEY_TEMP = "gemini_temperature";
 
     let conversationHistory = [];
 
-    // 로컬 저장소 값 복원
-    if (localStorage.getItem(STORAGE_KEY_API)) {
-      apiKeyInput.value = localStorage.getItem(STORAGE_KEY_API);
-    }
-    if (localStorage.getItem(STORAGE_KEY_MODEL)) {
-      modelSelect.value = localStorage.getItem(STORAGE_KEY_MODEL);
-    }
+    // 저장된 설정 복원
+    if (localStorage.getItem(STORAGE_KEY_API)) apiKeyInput.value = localStorage.getItem(STORAGE_KEY_API);
+    if (localStorage.getItem(STORAGE_KEY_MODEL)) modelSelect.value = localStorage.getItem(STORAGE_KEY_MODEL);
+    if (localStorage.getItem(STORAGE_KEY_SYSTEM)) systemPrompt.value = localStorage.getItem(STORAGE_KEY_SYSTEM);
+    if (localStorage.getItem(STORAGE_KEY_TEMP)) tempInput.value = localStorage.getItem(STORAGE_KEY_TEMP);
 
     try {
-      const savedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
-      if (savedHistory) {
-        conversationHistory = JSON.parse(savedHistory);
-      }
+      const saved = localStorage.getItem(STORAGE_KEY_HISTORY);
+      if (saved) conversationHistory = JSON.parse(saved);
     } catch (e) {
       conversationHistory = [];
     }
 
+    // 기본틀 설정창 열기/닫기
+    toggleSysBtn.addEventListener("click", () => {
+      systemBox.classList.toggle("open");
+    });
+
+    apiKeyInput.addEventListener("change", () => localStorage.setItem(STORAGE_KEY_API, apiKeyInput.value.trim()));
+    modelSelect.addEventListener("change", () => localStorage.setItem(STORAGE_KEY_MODEL, modelSelect.value));
+    systemPrompt.addEventListener("input", () => localStorage.setItem(STORAGE_KEY_SYSTEM, systemPrompt.value));
+    tempInput.addEventListener("change", () => localStorage.setItem(STORAGE_KEY_TEMP, tempInput.value));
+
     function renderAllMessages() {
       chatBox.innerHTML = "";
       if (conversationHistory.length === 0) {
-        appendSystemNotice("저장된 이전 대화가 없습니다. 자유롭게 대화를 시작해 보세요!");
+        const notice = document.createElement("div");
+        notice.className = "message system-notice";
+        notice.textContent = "상단 [✍️ 기본틀 설정]에서 세계관과 문체를 고정하고 집필을 시작해 보세요!";
+        chatBox.appendChild(notice);
         return;
       }
-
       conversationHistory.forEach(item => {
-        const roleClass = item.role === "user" ? "user" : "ai";
-        renderBubble(item.text, roleClass);
+        renderBubble(item.text, item.role === "user" ? "user" : "ai");
       });
-      scrollToBottom();
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
 
     function renderBubble(text, roleClass) {
@@ -285,57 +328,24 @@
       return msgDiv;
     }
 
-    function appendSystemNotice(text) {
-      const noticeDiv = document.createElement("div");
-      noticeDiv.className = "message system-notice";
-      noticeDiv.textContent = text;
-      chatBox.appendChild(noticeDiv);
-    }
-
-    function scrollToBottom() {
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function saveHistoryToStorage() {
+    function saveHistory() {
       localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(conversationHistory));
     }
 
-    apiKeyInput.addEventListener("change", () => {
-      localStorage.setItem(STORAGE_KEY_API, apiKeyInput.value.trim());
-    });
-
-    modelSelect.addEventListener("change", () => {
-      localStorage.setItem(STORAGE_KEY_MODEL, modelSelect.value);
-    });
-
     copyBtn.addEventListener("click", async () => {
-      if (conversationHistory.length === 0) {
-        alert("복사할 대화 내역이 없습니다.");
-        return;
-      }
-
-      const formattedText = conversationHistory.map(item => {
-        const sender = item.role === "user" ? "Q" : "A";
-        return `[${sender}]\n${item.text}\n`;
-      }).join("\n");
-
-      try {
-        await navigator.clipboard.writeText(formattedText);
-        const originalText = copyBtn.textContent;
-        copyBtn.textContent = "✓ 복사완료!";
-        setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
-      } catch (err) {
-        alert("클립보드 복사에 실패했습니다: " + err.message);
-      }
+      if (!conversationHistory.length) return alert("복사할 내용이 없습니다.");
+      const text = conversationHistory.map(i => `[${i.role === "user" ? "지시" : "원고"}]\n${i.text}\n`).join("\n");
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = "✓ 복사됨";
+      setTimeout(() => copyBtn.textContent = "📋 복사", 1500);
     });
 
     resetBtn.addEventListener("click", () => {
-      if (conversationHistory.length === 0) return;
-      if (confirm("대화 내역과 이전 기억을 모두 초기화할까요?")) {
+      if (!conversationHistory.length) return;
+      if (confirm("대화 내역을 초기화할까요? (작품 기본틀 설정은 그대로 유지됩니다)")) {
         conversationHistory = [];
         localStorage.removeItem(STORAGE_KEY_HISTORY);
         renderAllMessages();
-        promptInput.focus();
       }
     });
 
@@ -343,27 +353,24 @@
       const apiKey = apiKeyInput.value.trim();
       const prompt = promptInput.value.trim();
       const selectedModel = modelSelect.value;
+      const sysInstruction = systemPrompt.value.trim();
+      const temperature = parseFloat(tempInput.value) || 1.0;
 
-      if (!apiKey) {
-        alert("상단에 Gemini API 키를 먼저 입력해주세요.");
-        apiKeyInput.focus();
-        return;
-      }
-
+      if (!apiKey) return alert("API 키를 입력해주세요.");
       if (!prompt) return;
 
-      const systemNotice = chatBox.querySelector(".system-notice");
-      if (systemNotice) systemNotice.remove();
+      const notice = chatBox.querySelector(".system-notice");
+      if (notice) notice.remove();
 
       conversationHistory.push({ role: "user", text: prompt });
       renderBubble(prompt, "user");
-      saveHistoryToStorage();
+      saveHistory();
 
       promptInput.value = "";
       sendBtn.disabled = true;
 
       const aiBubble = renderBubble("...", "ai");
-      scrollToBottom();
+      chatBox.scrollTop = chatBox.scrollHeight;
 
       try {
         const ai = new GoogleGenAI({ apiKey });
@@ -380,33 +387,40 @@
           parts: [{ text: item.text }]
         }));
 
+        const configObj = {
+          safetySettings,
+          temperature,
+        };
+
+        // 기본틀(시스템 프롬프트)이 입력되어 있으면 고정 적용
+        if (sysInstruction) {
+          configObj.systemInstruction = sysInstruction;
+        }
+
         const responseStream = await ai.models.generateContentStream({
           model: selectedModel,
           contents: contentsPayload,
-          config: {
-            safetySettings: safetySettings,
-          },
+          config: configObj,
         });
 
         let fullAiText = "";
         aiBubble.textContent = "";
 
         for await (const chunk of responseStream) {
-          const chunkText = chunk.text;
-          if (chunkText) {
-            fullAiText += chunkText;
+          if (chunk.text) {
+            fullAiText += chunk.text;
             aiBubble.textContent = fullAiText;
-            scrollToBottom();
+            chatBox.scrollTop = chatBox.scrollHeight;
           }
         }
 
         conversationHistory.push({ role: "model", text: fullAiText });
-        saveHistoryToStorage();
+        saveHistory();
 
       } catch (error) {
-        aiBubble.textContent = `오류 발생: ${error.message || "답변을 불러오지 못했습니다. 모델명이나 키를 확인해주세요."}`;
+        aiBubble.textContent = `오류: ${error.message}`;
         conversationHistory.pop();
-        saveHistoryToStorage();
+        saveHistory();
       } finally {
         sendBtn.disabled = false;
         promptInput.focus();
@@ -414,7 +428,6 @@
     }
 
     sendBtn.addEventListener("click", handleSend);
-
     promptInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
