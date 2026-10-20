@@ -193,12 +193,14 @@
 
     .input-area textarea {
       flex: 1;
-      resize: none;
-      height: 54px;
+      resize: vertical;
+      min-height: 60px;
+      max-height: 180px;
       padding: 0.65rem 0.75rem;
       border: 1px solid var(--border);
       border-radius: 8px;
       font-size: 0.95rem;
+      line-height: 1.45;
       outline: none;
     }
 
@@ -254,7 +256,7 @@
     <div class="chat-box" id="chatBox"></div>
 
     <div class="input-area">
-      <textarea id="promptInput" placeholder="장면 지시나 이어질 내용을 입력하세요"></textarea>
+      <textarea id="promptInput" placeholder="장면 지시나 원고 내용을 입력하세요 (줄바꿈: Enter, 전송: Ctrl+Enter 또는 전송버튼)"></textarea>
       <button id="sendBtn" class="btn-send">전송</button>
     </div>
   </div>
@@ -392,7 +394,7 @@
           temperature,
         };
 
-        // 기본틀(시스템 프롬프트)이 입력되어 있으면 고정 적용
+        // 기본틀(시스템 프롬프트) 고정
         if (sysInstruction) {
           configObj.systemInstruction = sysInstruction;
         }
@@ -428,8 +430,10 @@
     }
 
     sendBtn.addEventListener("click", handleSend);
+
+    // 📌 변경된 키 이벤트: 단순 Enter는 자유롭게 줄바꿈, Ctrl+Enter 또는 Cmd+Enter 시 전송
     promptInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
         handleSend();
       }
