@@ -72,6 +72,7 @@
     .action-buttons {
       display: flex;
       gap: 0.4rem;
+      flex-wrap: wrap;
     }
 
     .btn-action {
@@ -83,10 +84,16 @@
       border: 1px solid var(--border);
       background: #ffffff;
       color: var(--text);
+      transition: background 0.15s;
     }
 
     .btn-action:hover {
       background: var(--btn-secondary-hover);
+    }
+
+    .btn-action.undo {
+      color: #0284c7;
+      border-color: #bae6fd;
     }
 
     .btn-action.reset {
@@ -122,7 +129,7 @@
     }
 
     .system-box.open {
-      display: flex;
+      display: flex !important;
     }
 
     .system-box label {
@@ -131,6 +138,7 @@
       color: #475569;
       display: flex;
       justify-content: space-between;
+      align-items: center;
     }
 
     .system-box textarea {
@@ -155,8 +163,10 @@
     }
 
     .message {
+      position: relative;
       max-width: 85%;
       padding: 0.85rem 1.1rem;
+      padding-right: 2rem;
       border-radius: 12px;
       font-size: 0.95rem;
       line-height: 1.65;
@@ -181,6 +191,33 @@
       align-self: center;
       color: #94a3b8;
       font-size: 0.85rem;
+      padding-right: 1.1rem;
+    }
+
+    /* 개별 말풍선 삭제 버튼 (X) */
+    .btn-del-msg {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px 5px;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .message:hover .btn-del-msg {
+      display: block;
+    }
+
+    .btn-del-msg:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
     }
 
     .input-area {
@@ -228,17 +265,21 @@
         <h1>Gemini 창작 스튜디오</h1>
         <div class="action-buttons">
           <button id="toggleSysBtn" class="btn-action">✍️ 기본틀 설정</button>
+          <button id="undoLastBtn" class="btn-action undo" title="가장 최근의 내 질문과 AI 답변을 삭제합니다">↩️ 최근 대화 취소</button>
           <button id="copyBtn" class="btn-action">📋 복사</button>
-          <button id="resetBtn" class="btn-action reset">🔄 초기화</button>
+          <button id="resetBtn" class="btn-action reset">🔄 전체 초기화</button>
         </div>
       </div>
 
       <div class="settings-bar">
         <select id="modelSelect">
-          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
           <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+          <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+          <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+          <option value="gemini-3-flash">Gemini 3 Flash</option>
+          <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
           <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-          <option value="gemini-2.5-pro">Gemini 2.5 Pro (장편/고성능)</option>
         </select>
         <input type="password" id="apiKey" placeholder="API 키 입력" />
       </div>
@@ -261,6 +302,18 @@
     </div>
   </div>
 
+  <!-- 1. UI 이벤트 즉시 바인딩 (네트워크 지연 영향 방지) -->
+  <script>
+    const toggleSysBtn = document.getElementById("toggleSysBtn");
+    const systemBox = document.getElementById("systemBox");
+
+    toggleSysBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      systemBox.classList.toggle("open");
+    });
+  </script>
+
+  <!-- 2. Gemini API 및 메인 로직 -->
   <script type="module">
     import { GoogleGenAI } from "https://esm.run/@google/genai";
 
@@ -270,9 +323,8 @@
     const sendBtn = document.getElementById("sendBtn");
     const chatBox = document.getElementById("chatBox");
     const copyBtn = document.getElementById("copyBtn");
+    const undoLastBtn = document.getElementById("undoLastBtn");
     const resetBtn = document.getElementById("resetBtn");
-    const toggleSysBtn = document.getElementById("toggleSysBtn");
-    const systemBox = document.getElementById("systemBox");
     const systemPrompt = document.getElementById("systemPrompt");
     const tempInput = document.getElementById("tempInput");
 
@@ -297,11 +349,6 @@
       conversationHistory = [];
     }
 
-    // 기본틀 설정창 열기/닫기
-    toggleSysBtn.addEventListener("click", () => {
-      systemBox.classList.toggle("open");
-    });
-
     apiKeyInput.addEventListener("change", () => localStorage.setItem(STORAGE_KEY_API, apiKeyInput.value.trim()));
     modelSelect.addEventListener("change", () => localStorage.setItem(STORAGE_KEY_MODEL, modelSelect.value));
     systemPrompt.addEventListener("input", () => localStorage.setItem(STORAGE_KEY_SYSTEM, systemPrompt.value));
@@ -316,16 +363,30 @@
         chatBox.appendChild(notice);
         return;
       }
-      conversationHistory.forEach(item => {
-        renderBubble(item.text, item.role === "user" ? "user" : "ai");
+
+      conversationHistory.forEach((item, index) => {
+        renderBubble(item.text, item.role === "user" ? "user" : "ai", index);
       });
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    function renderBubble(text, roleClass) {
+    function renderBubble(text, roleClass, index = null) {
       const msgDiv = document.createElement("div");
       msgDiv.className = `message ${roleClass}`;
       msgDiv.textContent = text;
+
+      if (index !== null) {
+        const delBtn = document.createElement("button");
+        delBtn.className = "btn-del-msg";
+        delBtn.innerHTML = "&times;";
+        delBtn.title = "이 메시지만 삭제";
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteSingleMessage(index);
+        });
+        msgDiv.appendChild(delBtn);
+      }
+
       chatBox.appendChild(msgDiv);
       return msgDiv;
     }
@@ -333,6 +394,39 @@
     function saveHistory() {
       localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(conversationHistory));
     }
+
+    function deleteSingleMessage(index) {
+      if (confirm("이 말풍선 내용을 삭제하시겠습니까?")) {
+        conversationHistory.splice(index, 1);
+        saveHistory();
+        renderAllMessages();
+      }
+    }
+
+    undoLastBtn.addEventListener("click", () => {
+      if (conversationHistory.length === 0) {
+        return alert("삭제할 대화 내용이 없습니다.");
+      }
+
+      let restoredUserText = "";
+
+      if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === "model") {
+        conversationHistory.pop();
+      }
+
+      if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === "user") {
+        const lastUserMsg = conversationHistory.pop();
+        restoredUserText = lastUserMsg.text;
+      }
+
+      saveHistory();
+      renderAllMessages();
+
+      if (restoredUserText) {
+        promptInput.value = restoredUserText;
+        promptInput.focus();
+      }
+    });
 
     copyBtn.addEventListener("click", async () => {
       if (!conversationHistory.length) return alert("복사할 내용이 없습니다.");
@@ -344,7 +438,7 @@
 
     resetBtn.addEventListener("click", () => {
       if (!conversationHistory.length) return;
-      if (confirm("대화 내역을 초기화할까요? (작품 기본틀 설정은 그대로 유지됩니다)")) {
+      if (confirm("모든 대화 내역을 초기화할까요? (작품 기본틀 설정은 그대로 유지됩니다)")) {
         conversationHistory = [];
         localStorage.removeItem(STORAGE_KEY_HISTORY);
         renderAllMessages();
@@ -365,8 +459,7 @@
       if (notice) notice.remove();
 
       conversationHistory.push({ role: "user", text: prompt });
-      renderBubble(prompt, "user");
-      saveHistory();
+      renderAllMessages();
 
       promptInput.value = "";
       sendBtn.disabled = true;
@@ -394,7 +487,6 @@
           temperature,
         };
 
-        // 기본틀(시스템 프롬프트) 고정
         if (sysInstruction) {
           configObj.systemInstruction = sysInstruction;
         }
@@ -418,11 +510,13 @@
 
         conversationHistory.push({ role: "model", text: fullAiText });
         saveHistory();
+        renderAllMessages();
 
       } catch (error) {
         aiBubble.textContent = `오류: ${error.message}`;
         conversationHistory.pop();
         saveHistory();
+        renderAllMessages();
       } finally {
         sendBtn.disabled = false;
         promptInput.focus();
@@ -431,7 +525,6 @@
 
     sendBtn.addEventListener("click", handleSend);
 
-    // 📌 변경된 키 이벤트: 단순 Enter는 자유롭게 줄바꿈, Ctrl+Enter 또는 Cmd+Enter 시 전송
     promptInput.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
