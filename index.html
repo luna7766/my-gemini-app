@@ -187,6 +187,16 @@
       border-bottom-left-radius: 2px;
     }
 
+    /* 오류 전용 말풍선 스타일 */
+    .message.error {
+      align-self: flex-start;
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      border-bottom-left-radius: 2px;
+      font-size: 0.88rem;
+    }
+
     .message.system-notice {
       align-self: center;
       color: #94a3b8;
@@ -302,7 +312,7 @@
     </div>
   </div>
 
-  <!-- 1. UI 이벤트 즉시 바인딩 (네트워크 지연 영향 방지) -->
+  <!-- 1. UI 이벤트 즉시 바인딩 -->
   <script>
     const toggleSysBtn = document.getElementById("toggleSysBtn");
     const systemBox = document.getElementById("systemBox");
@@ -365,7 +375,8 @@
       }
 
       conversationHistory.forEach((item, index) => {
-        renderBubble(item.text, item.role === "user" ? "user" : "ai", index);
+        const roleClass = item.role === "user" ? "user" : (item.role === "error" ? "error" : "ai");
+        renderBubble(item.text, roleClass, index);
       });
       chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -410,7 +421,7 @@
 
       let restoredUserText = "";
 
-      if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === "model") {
+      if (conversationHistory.length > 0 && (conversationHistory[conversationHistory.length - 1].role === "model" || conversationHistory[conversationHistory.length - 1].role === "error")) {
         conversationHistory.pop();
       }
 
@@ -429,8 +440,9 @@
     });
 
     copyBtn.addEventListener("click", async () => {
-      if (!conversationHistory.length) return alert("복사할 내용이 없습니다.");
-      const text = conversationHistory.map(i => `[${i.role === "user" ? "지시" : "원고"}]\n${i.text}\n`).join("\n");
+      const validMessages = conversationHistory.filter(i => i.role === "user" || i.role === "model");
+      if (!validMessages.length) return alert("복사할 내용이 없습니다.");
+      const text = validMessages.map(i => `[${i.role === "user" ? "지시" : "원고"}]\n${i.text}\n`).join("\n");
       await navigator.clipboard.writeText(text);
       copyBtn.textContent = "✓ 복사됨";
       setTimeout(() => copyBtn.textContent = "📋 복사", 1500);
@@ -458,13 +470,15 @@
       const notice = chatBox.querySelector(".system-notice");
       if (notice) notice.remove();
 
+      // 사용자 질문 저장 및 화면 표시
       conversationHistory.push({ role: "user", text: prompt });
       renderAllMessages();
 
       promptInput.value = "";
       sendBtn.disabled = true;
 
-      const aiBubble = renderBubble("...", "ai");
+      // 대기 안내 말풍선 (임시)
+      const loadingBubble = renderBubble("⏳ 원고 작성 중...", "ai");
       chatBox.scrollTop = chatBox.scrollHeight;
 
       try {
@@ -477,10 +491,13 @@
           { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
         ];
 
-        const contentsPayload = conversationHistory.map(item => ({
-          role: item.role,
-          parts: [{ text: item.text }]
-        }));
+        // API 전송 시 오류 말풍선(role === 'error')은 제외하고 정상 대화만 전송
+        const contentsPayload = conversationHistory
+          .filter(item => item.role === "user" || item.role === "model")
+          .map(item => ({
+            role: item.role,
+            parts: [{ text: item.text }]
+          }));
 
         const configObj = {
           safetySettings,
@@ -491,30 +508,23 @@
           configObj.systemInstruction = sysInstruction;
         }
 
-        const responseStream = await ai.models.generateContentStream({
+        // 일괄 출력 (Non-streaming) 호출
+        const response = await ai.models.generateContent({
           model: selectedModel,
           contents: contentsPayload,
           config: configObj,
         });
 
-        let fullAiText = "";
-        aiBubble.textContent = "";
-
-        for await (const chunk of responseStream) {
-          if (chunk.text) {
-            fullAiText += chunk.text;
-            aiBubble.textContent = fullAiText;
-            chatBox.scrollTop = chatBox.scrollHeight;
-          }
-        }
+        const fullAiText = response.text || "(응답 내용이 비어 있습니다. 안전 필터 또는 모델 상태를 확인해주세요.)";
 
         conversationHistory.push({ role: "model", text: fullAiText });
         saveHistory();
         renderAllMessages();
 
       } catch (error) {
-        aiBubble.textContent = `오류: ${error.message}`;
-        conversationHistory.pop();
+        // 오류 발생 시 질문을 지우지 않고 오류 전용 말풍선으로 기록
+        const errorMsg = `⚠️ API 오류 발생:\n${error.message || JSON.stringify(error)}`;
+        conversationHistory.push({ role: "error", text: errorMsg });
         saveHistory();
         renderAllMessages();
       } finally {
